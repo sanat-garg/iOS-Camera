@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<link href="https://pro.fontawesome.com/releases/v5.10.0/css/all.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<body style="background: black;">
+    <div style="width: 245px;height:422px;position: absolute;left:0;top:0;;overflow: hidden;">
+        <p class="videoDuration" style="transition:0.2s;display:none;background: black;color:white;position: absolute;width: 26%;text-align: center;margin-left: 37%;margin-top: 8px;font-size: 0.8em;border-radius: 3px;font-family: 'Apple';padding: 2px 0;">00:00:00</p>
+    <i onclick="expandOrCompress(this)" class="fal fa-expand-alt" style="cursor:pointer;position: absolute;background: rgba(0,0,0,0.5);color:white;width: 12px;;left:calc(50% - 12px);top:68%;z-index: 9;text-align: center;
+    padding: 5px;border-radius: 100px;transform: rotate(90deg);font-size: 0.8em;"></i>
+        <video id="gum" muted autoplay playsinline style="background: black;height: 66%;margin-top: 14%;"></video>
+        <ul>
+            <li id="VIDEO" onclick="videoStart()">VIDEO</li>
+            <li id="PHOTO" onclick="photoStart()" style="color:orange">PHOTO</li>
+            <li id="SCREEN" onclick="screenStart()">SCREEN</li>
+        </ul>
+    <div class="capture_border" style="transition:0.2s;border: 2px solid white;width: 45px;border-radius: 100%;height:45px;position: absolute;bottom: 20px;left:calc(50% - 22.5px);padding:0;margin:0;"><button id="record" onclick="capturePhoto()" class="capture Record" style="width: 45px;height:45px;border-radius: 100px;border:none;border:2px solid black;background: white;"></button></div>
+    </div>
+
+    <div id="vid-recorder"></div>
+    <canvas id="canvas"></canvas>
+    <canvas id="croppedCanvas"></canvas>
+    <button id="download" disabled style="position: absolute;opacity: 0;">Download</button>
+    <button id="downloadScreen" disabled style="position: absolute;opacity: 0;">Download</button>
+
+    <span id="errorMsg"></span>
+    <input style="opacity:0" checked type="checkbox" id="echoCancellation" />
+</body>
+</html>
+
+<script type="text/javascript">
+    var video = document.querySelector("video");
+    
+    function capturePhoto(){
+        var canvas = document.querySelector('#canvas')
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+       	let image_data_url = canvas.toDataURL('image/jpeg');
+        crop();
+        var link = document.createElement('a');
+        var t = new Date();
+        link.download = t.getFullYear()+pad(parseInt(t.getMonth())+1)+pad(t.getDate())+'_'+pad(t.getHours())+pad(t.getMinutes())+pad(t.getSeconds())+'.png';
+        if(document.querySelector('.fa-expand-alt')!=undefined){
+            link.href = document.getElementById('croppedCanvas').toDataURL()
+        }else{
+            link.href = document.getElementById('canvas').toDataURL()
+        }
+        link.click();
+    }
+    function pad(n) {return ((n < 10 ? '0' : '') + n).toString();}
+
+    function screenStart(){
+        $('li').css('color','white');
+        document.querySelector('.videoDuration').style.display = 'block';
+        document.querySelector('ul').style.marginLeft= '-22%';
+        document.querySelector('.capture').style.background = 'red';
+        document.querySelector('.capture_border').style.border = '2px solid white ';
+        document.querySelector('#record').setAttribute('onclick','startVideoScreen()');
+        document.getElementById('SCREEN').style.color = 'orange';
+     //    navigator.mediaDevices.getDisplayMedia({audio: true, video: { mediaSource: "screen"}}).then(function (stream) {video.srcObject = stream;})
+        var item = document.querySelector('.fal')
+        if(item.classList.contains('fa-expand-alt')){
+            item.classList.add('fa-compress-alt')
+            item.classList.remove('fa-expand-alt')
+            video.style.width = '100%';
+            video.style.transform = null;
+            video.src = null;
+            video.srcObject = null;          
+        }
+        item.style.display = 'none';
+        startScreenCapturing();
+    }
+   
+
+   
+    function videoStart(){
+        $('li').css('color','white');
+        var item = document.querySelector('.fal')
+        if(item.classList.contains('fa-expand-alt')){
+            item.click()
+        }
+        document.querySelector('.videoDuration').style.display = 'block';        
+        //document.querySelector('.fal').style.display = 'none';
+        document.querySelector('ul').style.marginLeft= '25%';
+        document.querySelector('.capture').style.background = 'red';
+        document.querySelector('.capture_border').style.border = '2px solid white ';
+        document.getElementById('VIDEO').style.color = 'orange';
+        document.querySelector('#record').setAttribute('onclick','startVideoCap()');
+        startVideoCapturing();
+    }
+    function photoStart(){
+        /*$('li').css('color','white');
+        document.querySelector('.videoDuration').style.display = 'none'
+        document.querySelector('.fal').style.display = 'block';
+        document.querySelector('ul').style.marginLeft= '3%';
+        document.querySelector('.capture').style.background = 'white'
+        document.querySelector('.capture_border').style.border = '2px solid white ';
+        document.querySelector('#record').setAttribute('onclick','capturePhoto()');
+        document.getElementById('PHOTO').style.color = 'orange';
+        startWebCam();*/window.location.reload()
+    }
+    function expandOrCompress (item){
+        if(item.classList.contains('fa-expand-alt')){
+            item.classList.add('fa-compress-alt')
+            item.classList.remove('fa-expand-alt')
+            video.style.width = '100%';
+            video.style.transform = null;
+        }
+        else{
+            item.classList.remove('fa-compress-alt')
+            item.classList.add('fa-expand-alt');
+            video.style.width = null;
+            video.style.transform = "translate(-"+(((video.offsetWidth)-245)/2)+"px)"
+
+        }
+    }
+    function startWebCam() {
+        if (navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function (stream) {
+                      video.srcObject = stream;
+                })
+                .catch(function (err0r) {
+                      console.log("Something went wrong!");
+                });
+        };
+
+    }
+    
+    function crop() {
+            var canvasOld = document.querySelector('#canvas')
+            var canvas = document.getElementById("croppedCanvas");
+            var contex = canvas.getContext("2d");
+            var img = document.getElementById("myImage");  
+            var left  =((video.offsetWidth-245)/2)
+            contex.drawImage(canvasOld, left,0, 245, 422, 0, 0, 245, 422);
+    }
+    
+    video.addEventListener( "loadedmetadata", function (e) {var width = this.offsetWidth;var canvas = document.querySelector('#canvas');video.style.transform = "translate(-"+((width-245)/2)+"px)";canvas.width = video.offsetWidth;canvas.height = video.offsetHeight;canvas = document.getElementById("croppedCanvas");canvas.width = video.offsetWidth;canvas.height = video.offsetHeight;}, false );    
+    startWebCam();
+
+
+async function startScreenCapturing(){var hasEchoCancellation = document.querySelector('#echoCancellation').checked;var varraints = {audio: {echoCancellation: {exact: hasEchoCancellation}},video: { mediaSource: "screen"}};console.log('Using media varraints:', varraints);await initScreen(varraints)};
+async function startVideoCapturing(){var hasEchoCancellation = document.querySelector('#echoCancellation').checked;var varraints = {audio: {echoCancellation: {exact: hasEchoCancellation}},video: {width: 1280, height: 720}};console.log('Using media varraints:', varraints);await init(varraints)};
+let mediaRecorder;let recordedBlobs;var errorMsgElement = document.querySelector('span#errorMsg');var recordedVideo = document.querySelector('video#recorded');var recordButton = document.querySelector('button#record');var downloadButton = document.querySelector('button#download');var downloadButtonScreen = document.querySelector('button#downloadScreen');
+function startVideoCap(){startDurationPlus();if (recordButton.classList.contains('Record')) {startRecording();} else {stopRecording();recordButton.classList.add('Record');recordButton.classList.remove('StopRecording');recordButton.style= 'width: 45px; height: 45px; border-radius: 100px; border: 2px solid black; background: red;';downloadButton.disabled = false;setTimeout(function(){document.getElementById('download').click()},100)}};
+downloadButton.addEventListener('click', () => {var blob = new Blob(recordedBlobs, {type: 'video/mp4'});var url = window.URL.createObjectURL(blob);var a = document.createElement('a');a.style.display = 'none';a.href = url;var t = new Date();a.download = t.getFullYear()+pad(parseInt(t.getMonth())+1)+pad(t.getDate())+'_'+pad(t.getHours())+pad(t.getMinutes())+pad(t.getSeconds())+'.mp4';;document.body.appendChild(a);a.click();setTimeout(() => {document.body.removeChild(a);window.URL.revokeObjectURL(url);}, 100)});
+downloadButtonScreen.addEventListener('click', () => {var blob = new Blob(recordedBlobsScreen, {type: 'video/mp4'});var url = window.URL.createObjectURL(blob);var a = document.createElement('a');a.style.display = 'none';a.href = url;var t = new Date();a.download = t.getFullYear()+pad(parseInt(t.getMonth())+1)+pad(t.getDate())+'_'+pad(t.getHours())+pad(t.getMinutes())+pad(t.getSeconds())+'.mp4';;document.body.appendChild(a);a.click();setTimeout(() => {document.body.removeChild(a);window.URL.revokeObjectURL(url);}, 100)});
+function handleDataAvailable(event) {  console.log('handleDataAvailable', event);  if (event.data && event.data.size > 0) {    recordedBlobs.push(event.data);  }}
+function startRecording() {recordedBlobs = [];let options = {mimeType: 'video/webm;codecs=vp9,opus'};try {mediaRecorder = new MediaRecorder(window.stream, options);} catch (e) {console.error('Exception while creating MediaRecorder:', e);errorMsgElement.innerHTML = `Exception while creating MediaRecorder: ${JSON.stringify(e)}`;return;};console.log('Created MediaRecorder', mediaRecorder, 'with options', options);recordButton.classList.remove('Record');recordButton.classList.add('StopRecording');recordButton.style ="padding:9px;margin-left:11.5px;margin-top:11px;width: 8px;height:8px;border-radius: 6px; border:2px solid red; background: red;";downloadButton.disabled = true;mediaRecorder.onstop = (event) => {console.log('Recorder stopped: ', event);console.log('Recorded Blobs: ', recordedBlobs);};mediaRecorder.ondataavailable = handleDataAvailable;mediaRecorder.start();console.log('MediaRecorder started', mediaRecorder);}
+function stopRecording() {mediaRecorder.stop();stopDuration()}
+function handleSuccess(stream) {recordButton.disabled = false;console.log('getUserMedia() got stream:', stream);window.stream = stream;var gumVideo = document.querySelector('video#gum');gumVideo.srcObject = stream}
+let mediaRecorderScreen;let recordedBlobsScreen;
+function startVideoScreen(){startDurationPlus();if (recordButton.classList.contains('Record')) {startRecordingScreen();} else {stopRecordinScreen();recordButton.classList.add('Record');recordButton.classList.remove('StopRecording');recordButton.style= 'width: 45px; height: 45px; border-radius: 100px; border: 2px solid black; background: red;';downloadButtonScreen.disabled = false;setTimeout(function(){document.getElementById('downloadScreen').click()},100)}};
+function handleDataAvailableScreen(event) {  console.log('handleDataAvailableScreen', event);  if (event.data && event.data.size > 0) {    recordedBlobsScreen.push(event.data);  }}
+function startRecordingScreen() {recordedBlobsScreen = [];let options = {mimeType: 'video/webm;codecs=vp9,opus'};try {mediaRecorderScreen = new MediaRecorder(window.stream, options);} catch (e) {console.error('Exception while creating mediaRecorderScreen:', e);errorMsgElement.innerHTML = `Exception while creating mediaRecorderScreen: ${JSON.stringify(e)}`;return;};console.log('Created mediaRecorderScreen', mediaRecorderScreen, 'with options', options);recordButton.classList.remove('Record');recordButton.classList.add('StopRecording');recordButton.style ="padding:9px;margin-left:11.5px;margin-top:11px;width: 8px;height:8px;border-radius: 6px; border:2px solid red; background: red;";downloadButtonScreen.disabled = true;mediaRecorderScreen.onstop = (event) => {console.log('Recorder stopped: ', event);console.log('Recorded Blobs: ', recordedBlobsScreen);};mediaRecorderScreen.ondataavailable = handleDataAvailableScreen;mediaRecorderScreen.start();console.log('mediaRecorderScreen started', mediaRecorderScreen);}
+function stopRecordinScreen() {mediaRecorderScreen.stop();stopDuration()}
+function handleSuccessScreen(stream) {recordButton.disabled = false;console.log('getUserMedia() got stream:', stream);window.stream = stream;var gumVideo = document.querySelector('video#gum');gumVideo.srcObject = stream}
+async function init(varraints) {try {var stream = await navigator.mediaDevices.getUserMedia(varraints);handleSuccess(stream);} catch (e) {console.error('navigator.getUserMedia error:', e);errorMsgElement.innerHTML = `navigator.getUserMedia error:${e.toString()}`;}}
+async function initScreen(varraints) {try {var stream = await navigator.mediaDevices.getDisplayMedia({audio: true, video: { mediaSource: "screen"}});handleSuccess(stream);} catch (e) {console.error('navigator.getUserMedia error:', e);errorMsgElement.innerHTML = `navigator.getUserMedia error:${e.toString()}`;}}
+var durationRun = -1;
+function startDurationPlus(){
+    var p = document.querySelector('.videoDuration');
+    p.style.background = 'red';
+    durationRun = 0;
+    var loop = setInterval(function(){
+        if(durationRun >= 0){
+            if(durationRun <= 59){p.innerHTML = '00:00:'+pad(durationRun)}
+            else if(durationRun <= 3599){p.innerHTML = '00:'+pad(parseInt(durationRun/60))+':'+pad(durationRun%60)}
+            else if(durationRun >= 3600){p.innerHTML = pad(parseInt(durationRun/3600))+':'+pad(parseInt(durationRun/60))+':'+pad(durationRun%60)}
+            durationRun ++;
+        } 
+        else{
+            clearInterval(loop)
+        }
+    },1000)
+}
+function stopDuration(){
+    durationRun = -1;
+    var p = document.querySelector('.videoDuration');
+    p.style.background = 'black';
+    p.innerHTML = '00:00:00';
+    
+}
+</script>
+<style>
+    @font-face {font-family: "Apple";src: url(../media/apple.otf);}
+    li{
+        font-family: "Apple";
+        color:white;
+        display: inline-block;
+        font-size: 0.65em;
+        letter-spacing: 0.5px;
+        margin: 0 8px;
+    }
+    ul{
+        width: 200%;
+        margin: 7px 0;;
+        margin-left: 3%;
+        transition: 0.2s;
+    }
+    .capture{
+        transition: 0.2s;
+    }
+    canvas{
+        display: none;
+        margin-left: 500px;
+    }
+</style>
